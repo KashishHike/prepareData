@@ -15,11 +15,12 @@ import java.io.FileWriter
 object Main {
   
   var es: ExecutorService = null
-  val relationshipDumpFile = "/Users/kashish/Desktop/relationships"
-  val errorFile = "/Users/kashish/Desktop/errors"
-  val numThreadsfileName = "/Users/kashish/Desktop/numThreads"
-  val inputFilename = "/Users/kashish/Desktop/000000_0"
-  val redisDumpFileLocation = "/Users/kashish/Desktop/redisDump"
+  val prefix = "/home/kashish"
+  val relationshipDumpFile = s"$prefix/relationships"
+  val errorFile = s"$prefix/errors"
+  val numThreadsfileName = s"$prefix/numThreads"
+  val inputFilename = s"$prefix/000000_0"
+  val redisDumpFileLocation = s"$prefix/redisDump"
   
   def launchANewThread(uid: String): Future[List[String]] = {
     es.submit(new Callable[List[String]]() {
