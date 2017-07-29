@@ -19,6 +19,7 @@ object Main {
   val errorFile = "/Users/kashish/Desktop/errors"
   val numThreadsfileName = "/Users/kashish/Desktop/numThreads"
   val inputFilename = "/Users/kashish/Desktop/000000_0"
+  val redisDumpFileLocation = "/Users/kashish/Desktop/redisDump"
   
   def launchANewThread(uid: String): Future[List[String]] = {
     es.submit(new Callable[List[String]]() {
@@ -75,7 +76,7 @@ object Main {
     val fw = new FileWriter(fileLocation, true)
     try {
       fw.write(line)
-      println("Dumped the data to file")
+      println(s"Dumped the data to file $fileLocation")
     } catch {
       case ex:Exception => {
         println("=======ERROR========" + ex.printStackTrace())
@@ -123,13 +124,22 @@ object Main {
       val allRelationships = listOfFutures.map(future => future.get).flatMap(list => list).toList
       
       // Dump all the relationships in the output file only if there is something to dump
-      if(allRelationships.length > 0)
+      if(allRelationships.length > 0) {
+        // Dump the data to a file
         dumpData(relationshipDumpFile, allRelationships.mkString("\n") + "\n")
+        // Push the current user to redis
+        Redis.putUniqueKeyToRedis(List(allRelationships(0).split(",")(0)))
+        // Push the unique contacts to redis
+        Redis.putUniqueKeyToRedis(allRelationships.map(value => value.split(",")(1)))
+      }
       
       // Update the start pointer
       start = end
     }
 
+    // Dumping all the redis data to a file
+    println("Dumping the redis to a file")
+    dumpData(redisDumpFileLocation, Redis.getAllData())
     println("===============Job completed successfully================")
   }
   

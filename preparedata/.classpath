@@ -8,5 +8,7 @@
 	<classpathentry kind="var" path="M2_REPO/org/scala-lang/scala-reflect/2.11.2/scala-reflect-2.11.2.jar"/>
 	<classpathentry kind="var" path="M2_REPO/org/scala-lang/modules/scala-xml_2.11/1.0.2/scala-xml_2.11-1.0.2.jar"/>
 	<classpathentry kind="var" path="M2_REPO/com/google/code/gson/gson/2.8.0/gson-2.8.0.jar"/>
+	<classpathentry kind="var" path="M2_REPO/redis/clients/jedis/2.9.0/jedis-2.9.0.jar"/>
+	<classpathentry kind="var" path="M2_REPO/org/apache/commons/commons-pool2/2.4.2/commons-pool2-2.4.2.jar"/>
 	<classpathentry kind="output" path="target/classes"/>
 </classpath>
