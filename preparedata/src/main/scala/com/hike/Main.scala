@@ -35,7 +35,6 @@ object Main {
     val newNumberOfThreads = Source.fromFile(numThreadsfileName).getLines.toList(0).trim
     if (newNumberOfThreads == null || newNumberOfThreads.trim() == "" || newNumberOfThreads.toInt <= 0) {
       println(s"Invalid number of threads $newNumberOfThreads")
-      System.exit(-1)
     }
     newNumberOfThreads.toInt
   }
@@ -89,6 +88,24 @@ object Main {
     }
   }
   
+  def getExecutorService(newNumberOfThreads: Int, oldNumberOfThreads: Int) {
+    if(es == null) {
+      //Start the new es with new number of threads
+      es = Executors.newFixedThreadPool(newNumberOfThreads)
+    }
+    if (newNumberOfThreads <= 0) {
+      // Shutdown the old es
+      es.shutdown()
+      System.exit(0)
+    }
+    if(newNumberOfThreads != oldNumberOfThreads) {
+      // Shutdown the old es
+      es.shutdown()
+      //Start the new es with new number of threads
+      es = Executors.newFixedThreadPool(newNumberOfThreads)
+    }
+  }
+  
   def main(args: Array[String]) {
     println("========Staring Job..=============")
     
@@ -99,11 +116,13 @@ object Main {
     }
 
     val lines = Source.fromFile(inputFilename).getLines.toList
+    var oldNumberOfThreads = 0
+    var newNumberOfThreads = 0
     
     while(start < lines.length) {
-      // Get the new env variable here.
-      val newNumberOfThreads = getNewThreadCount
-      es = Executors.newFixedThreadPool(newNumberOfThreads)
+      // Get the new number of threads for rate limiting.
+      newNumberOfThreads = getNewThreadCount
+      getExecutorService(newNumberOfThreads, oldNumberOfThreads)
       var end = start + newNumberOfThreads
 
       println(s"=========>Starting next iteration with $newNumberOfThreads threads from $start to $end" )
@@ -136,6 +155,9 @@ object Main {
       
       // Update the start pointer
       start = end
+      
+      //Make the thread count old
+      oldNumberOfThreads = newNumberOfThreads
     }
 
     // Dumping all the redis data to a file
@@ -143,5 +165,9 @@ object Main {
     dumpData(redisDumpFileLocation, Redis.getAllData())
     println("===============Job completed successfully================")
   }
+  
+  
+  // Shutdown the es
+  es.shutdown()
   
 }
