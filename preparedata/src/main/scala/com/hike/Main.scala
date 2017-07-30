@@ -174,8 +174,15 @@ object Main {
         val uid = lines(start).trim
         if(uid != "") {
           println(s"Line number $start -> uid is $uid")
-          // Launch a new thread here.
-          listOfFutures += (launchANewThread(uid))
+          try {
+            // Launch a new thread here.
+            listOfFutures += (launchANewThread(uid))
+          } catch {
+            case ex: Exception => {
+              println("=======FATAL ERROR========" + ex.printStackTrace())
+              dumpData(errorFile, "Failed iteration " + uid + "\n")
+            }
+          }
         }
         // Increment start
         start = start + 1
