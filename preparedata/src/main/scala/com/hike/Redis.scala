@@ -5,7 +5,6 @@ import redis.clients.jedis.Jedis
 object Redis {
   
   val jedis = new Jedis("localhost");
-  jedis.flushAll()
   
   def clear = jedis.flushAll()
   
@@ -15,12 +14,12 @@ object Redis {
       
     println("Putting the data to redis")
     keys.foreach(key => {
-      jedis.set(key, "TRUE")
+      jedis.set("CONTACTS_UNIQUE_" + key, "TRUE")
     })
   }
   
   def getAllData() : String = {
-    val s = jedis.keys("*")
-    s.size() +", " + s.toString()
+    val s = jedis.keys("CONTACTS_UNIQUE_*")
+    "\n" + s.size +", " + s.toString() + "\n"
   }
 }

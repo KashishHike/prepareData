@@ -33,30 +33,28 @@ object Main {
   
   def getNewThreadCount : Int = {
     val newNumberOfThreads = Source.fromFile(numThreadsfileName).getLines.toList(0).trim
-    if (newNumberOfThreads == null || newNumberOfThreads.trim() == "" || newNumberOfThreads.toInt <= 0) {
+    if (newNumberOfThreads == null || newNumberOfThreads == "") {
       println(s"Invalid number of threads $newNumberOfThreads")
     }
     newNumberOfThreads.toInt
   }
   
-  def callAbApi(uid: String) :List[String] = {
-    val url = "http://addressbookapi.hike.in/addressbook?uid=" + uid + "&ab=true&rab=false&onlyhike=true"
+  def callAbApi(myUid: String) :List[String] = {
+    val url = "http://addressbookapi.hike.in/addressbook?uid=" + myUid + "&ab=true&rab=false&onlyhike=true"
     val jsonResponse = scala.io.Source.fromURL(url).mkString
     val abResponse = convertToAbObject(jsonResponse)
     
     if(abResponse == null || abResponse.stat.equalsIgnoreCase("fail")) {
       // Write this failure log to a file
-      dumpData(errorFile, "Empty stat== " + uid + "\n")
+      dumpData(errorFile, "Empty stat== " + myUid + "\n")
 
     	return List()
     }
 
-    // Get the msisdn for this uid
-    val myMsisdn = abResponse.msisdn
-    println(s"Working on $uid and $myMsisdn")
+    println(s"Working on $myUid")
     // Get the list of all the uids
-    val contactRelationships = abResponse.ab.filterNot(contact => contact.msisdn.equalsIgnoreCase(myMsisdn)).map(contact => {
-      myMsisdn + "," + contact.msisdn
+    val contactRelationships = abResponse.ab.filterNot(contact => contact.uid.equals(myUid)).map(contact => {
+      myUid + "," + contact.uid
     })
     contactRelationships.toList
   }
@@ -164,10 +162,12 @@ object Main {
     println("Dumping the redis to a file")
     dumpData(redisDumpFileLocation, Redis.getAllData())
     println("===============Job completed successfully================")
+    
+    // Shutdown the es
+    es.shutdown()
   }
   
   
-  // Shutdown the es
-  es.shutdown()
+  
   
 }
