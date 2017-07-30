@@ -1,15 +1,25 @@
 package com.hike
 
-import scala.io.Source
-import scala.collection.JavaConverters._
-import scala.collection.JavaConversions._
-import com.google.gson.Gson
-import java.util.concurrent.Executors
-import java.util.concurrent.ExecutorService
-import java.util.concurrent.Callable
-import java.util.concurrent.Future
-import scala.collection.mutable.ListBuffer
 import java.io.FileWriter
+import java.util.HashMap
+import java.util.concurrent.Callable
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
+import java.util.concurrent.Future
+
+import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
+
+import scala.collection.mutable.ListBuffer
+import scala.io.Source
+import scala.reflect._
+import scala.reflect.ClassTag
+import java.lang.reflect.Type
+import com.google.gson.reflect.TypeToken
+import scala.collection.mutable.Map
+
+
+import com.google.gson.Gson
 
 
 object Main {
@@ -26,7 +36,7 @@ object Main {
     es.submit(new Callable[List[String]]() {
         def call(): List[String] = {
           println(s"Checking for: $uid")
-          return callAbApi(uid)
+          return getRecords(uid)
         }
     });
   }
@@ -39,33 +49,66 @@ object Main {
     newNumberOfThreads.toInt
   }
   
-  def callAbApi(myUid: String) :List[String] = {
-    val url = "http://addressbookapi.hike.in/addressbook?uid=" + myUid + "&ab=true&rab=false&onlyhike=true"
-    val jsonResponse = scala.io.Source.fromURL(url).mkString
-    val abResponse = convertToAbObject(jsonResponse)
+  def getRecords(myUid :String): List[String] = {
     
-    if(abResponse == null || abResponse.stat.equalsIgnoreCase("fail")) {
-      // Write this failure log to a file
-      dumpData(errorFile, "Empty stat== " + myUid + "\n")
-
-    	return List()
-    }
-
-    println(s"Working on $myUid")
-    // Get the list of all the uids
-    val contactRelationships = abResponse.ab.filterNot(contact => contact.uid.equals(myUid)).map(contact => {
-      myUid + "," + contact.uid
+    // Call the contacts api to get this user's contacts. Returns AB
+    val myHikeContacts: ABResponse = callAbApi(myUid)
+    
+    if(myHikeContacts.stat.equalsIgnoreCase("fail"))
+      return List[String]()
+      
+    // Call the friends api to get this user's friends on hike. Returns List(Friendship)
+    val myHikeFriends: Map[String, String] = callFriendsApi(myUid, myHikeContacts.msisdn)
+    
+    // Construct the record
+    val contactFriendsNodes = myHikeContacts.ab.asScala.toList.filterNot(ab => myUid.equals(ab.uid)).map(ab => {
+      myUid + "," + ab.uid + "," + myHikeFriends.get(ab.msisdn).getOrElse("ABSENT")
     })
-    contactRelationships.toList
+    
+    contactFriendsNodes.toList
   }
   
-  def convertToAbObject(jsonString: String): ABResponse = {
+  def callAbApi(myUid: String): ABResponse = {
+    println(s"Calling contact api for $myUid")
+    
+    val url = "http://addressbookapi.hike.in/addressbook?uid=" + myUid + "&ab=true&rab=false&onlyhike=true"
+    println(url)
+    val jsonResponse = scala.io.Source.fromURL(url).mkString
+    val abResponse: ABResponse = convertJsonToObject[ABResponse](jsonResponse)
+    
+    if(abResponse.stat.equalsIgnoreCase("fail")) {
+      // Write this failure log to a file
+      dumpData(errorFile, "Empty stat == " + myUid + "\n")
+    }
+    abResponse
+  }
+  
+  def callFriendsApi(myUid: String, myMsisdn: String): Map[String, String] = {
+    println(s"Calling friends api for $myUid  and $myMsisdn" )
+    val url = "http://addressbookapi.hike.in/v2/consoleapi/get_friends?uid=" + myUid + "&msisdn=" + myMsisdn
+    println(url)
+    val jsonResponse = scala.io.Source.fromURL(url).mkString
+    val typeToken: Type = new TypeToken[java.util.HashMap[String, Friendship]](){}.getType();
+
+    val friendsResponse: java.util.HashMap[String, Friendship] = new Gson().fromJson(jsonResponse, typeToken)
+    
+    if(friendsResponse.isEmpty || friendsResponse.size == 0) {
+      // Write this failure log to a file
+      dumpData(errorFile, "Empty friends list== " + myUid + " " + myMsisdn + "\n")
+    }
+    
+    friendsResponse.filterNot(f => f._2.first.equals("REMOVED"))
+                   .map(idToFriendship => idToFriendship._1 -> idToFriendship._2.first)
+
+  }
+  
+  def convertJsonToObject[T: ClassTag](jsonString: String): T = {
     try{
-      new Gson().fromJson(jsonString, classOf[ABResponse])
+      new Gson().fromJson(jsonString, classTag[T].runtimeClass)
     } catch {
       case ex:Exception => {
         println("======Error occured while converting json=======" + ex.printStackTrace())
-        null
+        null.asInstanceOf[T]
       }
     }
   }
