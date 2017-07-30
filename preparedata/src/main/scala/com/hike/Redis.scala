@@ -6,15 +6,18 @@ object Redis {
   
   val jedis = new Jedis("localhost");
   
-  def clear = jedis.flushAll()
-  
   def putUniqueKeyToRedis(keys: List[String]) {
     if(keys.isEmpty)
       return
       
     println("Putting the data to redis")
     keys.foreach(key => {
-      jedis.set("UNIQUE_CONTACTS_" + key, "TRUE")
+      val uid = key.split(":")(0)
+      val msisdn = key.split(":")(1)
+      if(uid.equals("null"))
+          jedis.set("UNIQUE_CONTACTS_" + msisdn, msisdn)
+      else
+        jedis.set("UNIQUE_CONTACTS_" + uid, msisdn)
     })
   }
   

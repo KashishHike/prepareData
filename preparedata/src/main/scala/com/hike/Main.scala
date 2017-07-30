@@ -54,6 +54,9 @@ object Main {
     // Call the contacts api to get this user's contacts. Returns AB
     val myHikeContacts: ABResponse = callAbApi(myUid)
     
+    // Get my msisdn
+    val myMsisdn = myHikeContacts.msisdn
+    
     if(myHikeContacts.stat.equalsIgnoreCase("fail"))
       return List[String]()
       
@@ -61,17 +64,23 @@ object Main {
     val myHikeFriends: Map[String, String] = callFriendsApi(myUid, myHikeContacts.msisdn)
     
     // Construct the record
-    val contactFriendsNodes = myHikeContacts.ab.asScala.toList.filterNot(ab => myUid.equals(ab.uid)).map(ab => {
-      myUid + "," + ab.uid + "," + myHikeFriends.get(ab.msisdn).getOrElse("ABSENT")
+    val contactNodes = myHikeContacts.ab.asScala.toList.filterNot(ab => myUid.equals(ab.uid)).map(ab => {
+      myUid + ":" + myMsisdn + "," + ab.uid + ":" + ab.msisdn + "," + myHikeFriends.get(ab.msisdn).getOrElse("ABSENT")
     })
     
-    contactFriendsNodes.toList
+    // Find users who are not a contact but are hike friends
+    // Put their uid as null until we dont find a way to get their msisdn to uid mapping
+    val notContactButFriendsNodes = myHikeFriends.keySet.filterNot(myHikeContacts.ab.contains).map(msisdn => {
+      myUid + ":" + myMsisdn + "," + "null:" + msisdn + "," + myHikeFriends.get(msisdn).get
+    }).toList
+    
+    contactNodes ++ notContactButFriendsNodes
   }
   
   def callAbApi(myUid: String): ABResponse = {
     println(s"Calling contact api for $myUid")
     
-    val url = "http://addressbookapi.hike.in/addressbook?uid=" + myUid + "&ab=true&rab=false&onlyhike=true"
+    val url = s"http://addressbookapi.hike.in/addressbook?uid=$myUid&ab=true&rab=false&onlyhike=true"
     println(url)
     val jsonResponse = scala.io.Source.fromURL(url).mkString
     val abResponse: ABResponse = convertJsonToObject[ABResponse](jsonResponse)
@@ -97,9 +106,7 @@ object Main {
       dumpData(errorFile, "Empty friends list== " + myUid + " " + myMsisdn + "\n")
     }
     
-    friendsResponse.filterNot(f => f._2.first.equals("REMOVED"))
-                   .map(idToFriendship => idToFriendship._1 -> idToFriendship._2.first)
-
+    friendsResponse.filterNot(f => f._2.first.equals("REMOVED")).map(idToFriendship => idToFriendship._1 -> idToFriendship._2.first)
   }
   
   def convertJsonToObject[T: ClassTag](jsonString: String): T = {
