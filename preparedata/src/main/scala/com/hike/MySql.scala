@@ -8,10 +8,10 @@ object MySql extends App {
     
   def createConnection() {
     
-    val host = "10.0.7.141"
-    val port = 3306
-    val username = "hike"
-    val password = "h1kerS3my59l"
+    val host = "10.0.5.145"
+    val port = 3308
+    val username = "platform"
+    val password = "p1atf0rmD1$t"
     
     // connect to the database named "mysql" on port 8889 of localhost
     val url = "jdbc:mysql://" + host + ":" + port + "/users?autoReconnect=true"
