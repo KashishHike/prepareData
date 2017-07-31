@@ -103,7 +103,7 @@ object Main {
     }
     if(abResponse.msisdn == null) {
       // UID not found in addressbook
-      dumpData(errorFile, "No msisdn for uid == " + myUid + "\n")
+      dumpData(errorFile, "No msisdn for uid == " + myUid + " in the addressbook api response\n")
     }
     abResponse
   }
