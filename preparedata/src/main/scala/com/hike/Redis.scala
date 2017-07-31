@@ -1,5 +1,5 @@
 package com.hike
-/*
+
 import redis.clients.jedis.Jedis
  
 object Redis {
@@ -12,21 +12,16 @@ object Redis {
       
     println("Putting the data to redis")
     keys.foreach(key => {
-      val uid = key.split(":")(0)
-      val msisdn = key.split(":")(1)
-      if(uid.equals("null"))
-          jedis.set("UNIQUE_CONTACTS_" + msisdn, msisdn)
-      else
-        jedis.set("UNIQUE_CONTACTS_" + uid, msisdn)
+      jedis.set("uc:" + key, "")
     })
   }
   
   def getAllData() : String = {
-    val allKeys = jedis.keys("UNIQUE_CONTACTS_*")
+    val allKeys = jedis.keys("uc:*")
     allKeys.size +", " + allKeys.toString() + "\n"
   }
   
   def getValue(key:String): String = {
     jedis.get(key)
   }
-}*/
+}

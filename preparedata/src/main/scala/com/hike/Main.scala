@@ -224,9 +224,9 @@ object Main {
         // Dump the data to a file
         dumpData(relationshipDumpFile, allRelationships.mkString("\n") + "\n")
         // Push the current user to redis
-        //Redis.putUniqueKeyToRedis(List(allRelationships(0).split(",")(0)))
+        Redis.putUniqueKeyToRedis(List(allRelationships(0).split(",")(0) + "," + allRelationships(0).split(",")(1)))
         // Push the unique contacts to redis
-        //Redis.putUniqueKeyToRedis(allRelationships.map(value => value.split(",")(1)))
+        Redis.putUniqueKeyToRedis(allRelationships.map(value => value.split(",")(2) + "," + value.split(",")(3)))
       }
       
       // Update the start pointer
@@ -237,8 +237,8 @@ object Main {
     }
 
     // Dumping all the redis data to a file
-    //println("Dumping the redis to a file")
-    //dumpData(redisDumpFileLocation, Redis.getAllData())
+    println("Dumping the redis to a file")
+    dumpData(redisDumpFileLocation, Redis.getAllData())
     println("===============Job completed successfully================")
     
     // Shutdown the es
@@ -247,7 +247,5 @@ object Main {
     // close the connection to Mysql
     MySql.closeConnection
   }
-  
-  
   
 }
