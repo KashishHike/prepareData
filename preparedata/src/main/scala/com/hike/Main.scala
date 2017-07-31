@@ -31,7 +31,7 @@ object Main {
   val numThreadsfileName = s"$prefix/numThreads"
   val inputFilename = s"$prefix/000000_0"
   val redisDumpFileLocation = s"$prefix/redisDump"
-  val csvHeader = "#sourceUid,sourceMsisdn,destUid,destMsisdn,isContact,isFriend,isOnHike\n" 
+  val csvHeader = "sourceUid,sourceMsisdn,destUid,destMsisdn,isContact,isFriend,isOnHike\n" 
   
   def launchANewThread(uid: String): Future[List[String]] = {
     es.submit(new Callable[List[String]]() {
@@ -66,14 +66,14 @@ object Main {
     
     // Construct the record. Here the isContact is true
     val contactNodes = myHikeContacts.ab.asScala.toList.filterNot(ab => myUid.equals(ab.uid)).map(ab => {
-      myUid + ":" + myMsisdn + "," + ab.uid + ":" + ab.msisdn + ",true," + myHikeFriends.get(ab.msisdn).getOrElse("false") + ",true"
+      myUid + "," + myMsisdn + "," + ab.uid + "," + ab.msisdn + ",true," + myHikeFriends.get(ab.msisdn).getOrElse("false") + ",true"
     })
     
     // Find users who are not a contact but are hike friends
     // Put their uid as null until we dont find a way to get their msisdn to uid mapping
     val myHikeContactsMsisdns = myHikeContacts.ab.map(_.msisdn)
     val notContactButFriendsNodes = myHikeFriends.keySet.filterNot(key => myHikeContactsMsisdns.contains(key)).map(msisdn => {
-      myUid + ":" + myMsisdn + "," + getUidFromMsisdn(msisdn) + ":" + msisdn + ",false," + myHikeFriends.get(msisdn).get + ",true"
+      myUid + "," + myMsisdn + "," + getUidFromMsisdn(msisdn) + "," + msisdn + ",false," + myHikeFriends.get(msisdn).get + ",true"
     }).toList
     
     contactNodes ++ notContactButFriendsNodes
@@ -81,10 +81,10 @@ object Main {
   
   def getUidFromMsisdn(msisdn: String): String = {
     //Fetch the uid from msisdn from redis
-    val uid = Redis.getValue(msisdn)
+    val uid = MySql.getUserIdFromMsisdn(msisdn)
     println(s"Fetched uid is $uid for $msisdn")
     if(uid == null || "null".equals(uid)) {
-      dumpData(errorFile, s"Fatal error. Msisdn $msisdn not found in redis \n")
+      dumpData(errorFile, s"Fatal error. Msisdn $msisdn not found in mysql \n")
     }
     uid
   }
@@ -181,6 +181,9 @@ object Main {
       dumpData(relationshipDumpFile, csvHeader)
     }
 
+    // Create a mysql connection
+    MySql.createConnection()
+
     val lines = Source.fromFile(inputFilename).getLines.toList
     var oldNumberOfThreads = 0
     var newNumberOfThreads = 0
@@ -221,9 +224,9 @@ object Main {
         // Dump the data to a file
         dumpData(relationshipDumpFile, allRelationships.mkString("\n") + "\n")
         // Push the current user to redis
-        Redis.putUniqueKeyToRedis(List(allRelationships(0).split(",")(0)))
+        //Redis.putUniqueKeyToRedis(List(allRelationships(0).split(",")(0)))
         // Push the unique contacts to redis
-        Redis.putUniqueKeyToRedis(allRelationships.map(value => value.split(",")(1)))
+        //Redis.putUniqueKeyToRedis(allRelationships.map(value => value.split(",")(1)))
       }
       
       // Update the start pointer
@@ -234,12 +237,15 @@ object Main {
     }
 
     // Dumping all the redis data to a file
-    println("Dumping the redis to a file")
-    dumpData(redisDumpFileLocation, Redis.getAllData())
+    //println("Dumping the redis to a file")
+    //dumpData(redisDumpFileLocation, Redis.getAllData())
     println("===============Job completed successfully================")
     
     // Shutdown the es
     es.shutdown()
+    
+    // close the connection to Mysql
+    MySql.closeConnection
   }
   
   

@@ -1,5 +1,5 @@
 package com.hike
-
+/*
 import redis.clients.jedis.Jedis
  
 object Redis {
@@ -29,4 +29,4 @@ object Redis {
   def getValue(key:String): String = {
     jedis.get(key)
   }
-}
+}*/
