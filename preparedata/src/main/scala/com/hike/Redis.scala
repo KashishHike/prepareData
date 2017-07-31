@@ -25,4 +25,8 @@ object Redis {
     val allKeys = jedis.keys("UNIQUE_CONTACTS_*")
     allKeys.size +", " + allKeys.toString() + "\n"
   }
+  
+  def getValue(key:String): String = {
+    jedis.get(key)
+  }
 }

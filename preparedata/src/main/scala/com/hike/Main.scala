@@ -26,11 +26,12 @@ object Main {
   
   var es: ExecutorService = null
   val prefix = "/home/kashish"
-  val relationshipDumpFile = s"$prefix/relationships"
+  val relationshipDumpFile = s"$prefix/relationships.csv"
   val errorFile = s"$prefix/errors"
   val numThreadsfileName = s"$prefix/numThreads"
   val inputFilename = s"$prefix/000000_0"
   val redisDumpFileLocation = s"$prefix/redisDump"
+  val csvHeader = "#sourceUid,sourceMsisdn,destUid,destMsisdn,isContact,isFriend,isOnHike\n" 
   
   def launchANewThread(uid: String): Future[List[String]] = {
     es.submit(new Callable[List[String]]() {
@@ -58,23 +59,34 @@ object Main {
     val myMsisdn = myHikeContacts.msisdn
     
     if(myHikeContacts.stat.equalsIgnoreCase("fail"))
-      return List[String]()
+    	return List[String]()
       
     // Call the friends api to get this user's friends on hike. Returns List(Friendship)
     val myHikeFriends: Map[String, String] = callFriendsApi(myUid, myHikeContacts.msisdn)
     
-    // Construct the record
+    // Construct the record. Here the isContact is true
     val contactNodes = myHikeContacts.ab.asScala.toList.filterNot(ab => myUid.equals(ab.uid)).map(ab => {
-      myUid + ":" + myMsisdn + "," + ab.uid + ":" + ab.msisdn + "," + myHikeFriends.get(ab.msisdn).getOrElse("ABSENT")
+      myUid + ":" + myMsisdn + "," + ab.uid + ":" + ab.msisdn + ",true," + myHikeFriends.get(ab.msisdn).getOrElse("false") + ",true"
     })
     
     // Find users who are not a contact but are hike friends
     // Put their uid as null until we dont find a way to get their msisdn to uid mapping
-    val notContactButFriendsNodes = myHikeFriends.keySet.filterNot(myHikeContacts.ab.contains).map(msisdn => {
-      myUid + ":" + myMsisdn + "," + "null:" + msisdn + "," + myHikeFriends.get(msisdn).get
+    val myHikeContactsMsisdns = myHikeContacts.ab.map(_.msisdn)
+    val notContactButFriendsNodes = myHikeFriends.keySet.filterNot(key => myHikeContactsMsisdns.contains(key)).map(msisdn => {
+      myUid + ":" + myMsisdn + "," + getUidFromMsisdn(msisdn) + ":" + msisdn + ",false," + myHikeFriends.get(msisdn).get + ",true"
     }).toList
     
     contactNodes ++ notContactButFriendsNodes
+  }
+  
+  def getUidFromMsisdn(msisdn: String): String = {
+    //Fetch the uid from msisdn from redis
+    val uid = Redis.getValue(msisdn)
+    println(s"Fetched uid is $uid for $msisdn")
+    if(uid == null || "null".equals(uid)) {
+      dumpData(errorFile, s"Fatal error. Msisdn $msisdn not found in redis \n")
+    }
+    uid
   }
   
   def callAbApi(myUid: String): ABResponse = {
@@ -88,6 +100,10 @@ object Main {
     if(abResponse.stat.equalsIgnoreCase("fail")) {
       // Write this failure log to a file
       dumpData(errorFile, "Empty stat == " + myUid + "\n")
+    }
+    if(abResponse.msisdn == null) {
+      // UID not found in addressbook
+      dumpData(errorFile, "No msisdn for uid == " + myUid + "\n")
     }
     abResponse
   }
@@ -106,7 +122,7 @@ object Main {
       dumpData(errorFile, "Empty friends list== " + myUid + " " + myMsisdn + "\n")
     }
     
-    friendsResponse.filterNot(f => f._2.first.equals("REMOVED")).map(idToFriendship => idToFriendship._1 -> idToFriendship._2.first)
+    friendsResponse.filter(f => f._2.first.equals("ADDED")).map(idToFriendship => idToFriendship._1 -> "true")
   }
   
   def convertJsonToObject[T: ClassTag](jsonString: String): T = {
@@ -156,11 +172,13 @@ object Main {
   
   def main(args: Array[String]) {
     println("========Staring Job..=============")
-    
     var start = 0
     if(args.length > 0) {
       start = args(0).toInt
       println(s"Resuming from $start")
+    } else {
+      // Put the header line in the CSV file
+      dumpData(relationshipDumpFile, csvHeader)
     }
 
     val lines = Source.fromFile(inputFilename).getLines.toList
@@ -223,7 +241,6 @@ object Main {
     // Shutdown the es
     es.shutdown()
   }
-  
   
   
   
